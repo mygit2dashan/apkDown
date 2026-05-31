@@ -25,6 +25,8 @@ jobs:
           pip install buildozer
 
       - name: Build APK
+        env:
+          BUILDOZER_ACCEPT_SDK_LICENSE: true
         run: |
           buildozer -v android debug
 
