@@ -1,45 +1,32 @@
-name: Build APK
+name: CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # 允许手动运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk
-          pip install buildozer cython pillow
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        accept-android-sdk-licenses: true   # 关键的许可证自动接受参数[reference:0]
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: "platforms;android-33 build-tools;34.0.0"
+    - name: Install Buildozer
+      run: |
+        pip install --upgrade pip
+        pip install buildozer
 
-      - name: Accept SDK licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-
-      - name: List files for debug
-        run: |
-          echo "=== Current directory contents ==="
-          ls -la
-          echo "=== buildozer.spec content ==="
-          cat buildozer.spec || echo "buildozer.spec missing!"
-
-      - name: Build APK
-        run: buildozer android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: anti-dedup-app
-          path: bin/*.apk
+    - name: Build APK with Buildozer
+      run: buildozer android debug
