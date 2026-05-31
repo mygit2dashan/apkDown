@@ -6,40 +6,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk \
-            autoconf automake libtool libtool-bin pkg-config cmake \
-            libffi-dev libssl-dev zlib1g-dev \
-            libjpeg-dev libpng-dev libncurses5-dev libncursesw5-dev
-          # 确保 libtoolize 命令可用
-          sudo ln -sf /usr/bin/libtoolize /usr/bin/libtool
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Buildozer
-        run: pip install buildozer
-
-      - name: Remove pre-installed Android SDK
-        run: |
-          sudo rm -rf /usr/local/lib/android/sdk
-          sudo rm -rf $HOME/.android
-
-      - name: Clean old buildozer cache
-        run: rm -rf .buildozer ~/.buildozer
-
       - name: Build APK
-        env:
-          BUILDOZER_WITH_SUDO: 0
-        run: buildozer -v android debug
+        uses: ArtemSBulgakov/buildozer-action@v1   # 注意是 @v1，不是 @v2
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
