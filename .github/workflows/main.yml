@@ -24,9 +24,18 @@ jobs:
         run: |
           pip install buildozer
 
+      # ---------- 关键修复点 ----------
+      - name: Accept SDK licenses
+        run: |
+          mkdir -p "$HOME/.android"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          # 如果上面命令报错找不到 sdkmanager，用兼容写法强行生成许可文件
+          mkdir -p "$HOME/.android/licenses"
+          echo -e "\nd56f5187479451eabf01fb78af6dfcb131a6481e" > "$HOME/.android/licenses/android-sdk-license"
+          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$HOME/.android/licenses/android-sdk-license"
+      # --------------------------------
+
       - name: Build APK
-        env:
-          BUILDOZER_ACCEPT_SDK_LICENSE: true
         run: |
           buildozer -v android debug
 
