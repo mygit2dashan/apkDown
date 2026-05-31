@@ -3,47 +3,23 @@ name: Build APK
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:   # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk \
-            libssl-dev libffi-dev autoconf automake libtool pkg-config
-
-      - name: Install Buildozer & Cython
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython
-
-      - name: Force accept Android SDK licenses
-        run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          # 尝试多个可能的 sdkmanager 路径，忽略错误
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-
       - name: Build APK
-        env:
-          P4A_ACCEPT_SDK_LICENSE: "yes"
-          BUILDOZER_ACCEPT_SDK_LICENSE: "yes"
-          DEBIAN_FRONTEND: "noninteractive"
-        run: |
-          buildozer -v android debug
+        uses: digitalocean/buildozer-action@v1
+        with:
+          buildozer_version: master
+          workdir: .
+          buildozer_spec: buildozer.spec
+          command: buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
