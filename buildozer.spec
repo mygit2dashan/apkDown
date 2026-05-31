@@ -1,5 +1,5 @@
-[app]
-title = 图片抗检测
+android.use_jdk21 = 真
+[应用程序]
 package.name = image_anti_dedup
 package.domain = org.example
 source.dir = .
@@ -9,7 +9,6 @@ requirements = python3,kivy,pillow
 orientation = portrait
 fullscreen = 0
 
-# Android 关键配置（解决许可证问题）
 android.api = 33
 android.minapi = 21
 android.ndk = 23b
