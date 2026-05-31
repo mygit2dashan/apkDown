@@ -1,32 +1,35 @@
-name: CI
+name: Build APK
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:   # 允许手动运行
+  workflow_dispatch:  # 手动触发，不用推送代码就打包
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        accept-android-sdk-licenses: true   # 关键的许可证自动接受参数[reference:0]
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install Buildozer
-      run: |
-        pip install --upgrade pip
-        pip install buildozer
+      - name: Install Buildozer
+        run: |
+          pip install buildozer
 
-    - name: Build APK with Buildozer
-      run: buildozer android debug
+      - name: Build APK
+        run: |
+          buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-file
+          path: bin/*.apk
