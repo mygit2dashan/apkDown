@@ -14,19 +14,26 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install buildozer & dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk
           pip install buildozer cython pillow
 
-      - name: Setup Android SDK (auto-license)
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: "platforms;android-33 build-tools;34.0.0"
 
-      - name: Accept SDK licenses (double-check)
+      - name: Accept SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: List files for debug
+        run: |
+          echo "=== Current directory contents ==="
+          ls -la
+          echo "=== buildozer.spec content ==="
+          cat buildozer.spec || echo "buildozer.spec missing!"
 
       - name: Build APK
         run: buildozer android debug
