@@ -9,11 +9,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK
-        uses: ArtemSBulgakov/buildozer-action@v1   # 注意是 @v1，不是 @v2
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+      - name: Build APK with Docker
+        run: |
+          docker run --rm \
+            -v $(pwd):/home/user/hostcwd \
+            -w /home/user/hostcwd \
+            kivy/buildozer:latest \
+            buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
