@@ -1,1 +1,126 @@
-"""图片抗检测 APP v1.0 (安卓版)功能：破坏MD5、感知哈希、CNN特征（旋转/裁剪/缩放/噪点/去EXIF/翻转等）仅用于自己原创图片的多账号发布防误判，请勿搬运他人作品"""import os, random, threadingfrom io import BytesIOfrom PIL import Image, ImageEnhance, ImageOpsfrom kivy.app import Appfrom kivy.uix.boxlayout import BoxLayoutfrom kivy.uix.button import Buttonfrom kivy.uix.label import Labelfrom kivy.uix.togglebutton import ToggleButtonfrom kivy.uix.slider import Sliderfrom kivy.uix.filechooser import FileChooserListViewfrom kivy.uix.popup import Popupfrom kivy.uix.progressbar import ProgressBarfrom kivy.clock import Clockfrom kivy.core.window import Windowdef process_image(img_path, out_path, jpeg_quality, flip_h, flip_v,                  color_jitter, add_border, png_recode, max_angle):    img = Image.open(img_path).convert('RGB')    if flip_h: img = img.transpose(Image.FLIP_LEFT_RIGHT)    if flip_v: img = img.transpose(Image.FLIP_TOP_BOTTOM)    if color_jitter:        img = ImageEnhance.Brightness(img).enhance(random.uniform(0.95,1.05))        img = ImageEnhance.Contrast(img).enhance(random.uniform(0.95,1.05))        img = ImageEnhance.Color(img).enhance(random.uniform(0.95,1.05))    angle = random.uniform(-max_angle, max_angle)    img = img.rotate(angle, resample=Image.BICUBIC, expand=False, fillcolor=(255,255,255))    crop_px = random.randint(1,3)    img = img.crop((crop_px, crop_px, img.width-crop_px, img.height-crop_px))    scale = random.uniform(0.995,1.005)    new_w, new_h = int(img.width*scale), int(img.height*scale)    img = img.resize((new_w, new_h), resample=Image.LANCZOS)    pixels = img.load()    ns = random.randint(1,2)    for i in range(img.width):        for j in range(img.height):            r,g,b = pixels[i,j]            n = random.randint(-ns, ns)            pixels[i,j] = (min(255,max(0,r+n)), min(255,max(0,g+n)), min(255,max(0,b+n)))    if add_border:        img = ImageOps.expand(img, border=1, fill=random.choice([(255,255,255),(0,0,0)]))    if png_recode:        temp_png = BytesIO()        img.save(temp_png, format='PNG')        temp_png.seek(0)        img = Image.open(temp_png).convert('RGB')    temp = BytesIO()    img.save(temp, format='JPEG', quality=jpeg_quality, optimize=True)    temp.seek(0)    Image.open(temp).save(out_path, format='JPEG', quality=jpeg_quality, optimize=True, exif=b'')    return Trueclass MainLayout(BoxLayout):    def __init__(self, **kwargs):        super().__init__(orientation='vertical', spacing=10, padding=10)        Window.bind(on_request_close=lambda *_: self.stop())        self.add_widget(Label(text='输出文件夹: /storage/emulated/0/DCIM/Processed', size_hint_y=None, height=30))        flip_box = BoxLayout(size_hint_y=None, height=40)        self.flip_h_btn = ToggleButton(text='水平翻转')        self.flip_v_btn = ToggleButton(text='垂直翻转')        flip_box.add_widget(self.flip_h_btn)        flip_box.add_widget(self.flip_v_btn)        self.add_widget(flip_box)        self.color_btn = ToggleButton(text='色彩微调', size_hint_y=None, height=40)        self.border_btn = ToggleButton(text='添加细边框', size_hint_y=None, height=40)        self.png_btn = ToggleButton(text='PNG二次转码', size_hint_y=None, height=40)        self.add_widget(self.color_btn); self.add_widget(self.border_btn); self.add_widget(self.png_btn)        self.add_widget(Label(text='最大旋转角度 (°)', size_hint_y=None, height=30))        self.angle_slider = Slider(min=0, max=2, value=0.6, step=0.1)        self.angle_value = Label(text='0.6°', size_hint_y=None, height=20)        self.add_widget(self.angle_slider); self.add_widget(self.angle_value)        self.angle_slider.bind(value=lambda i,v: setattr(self.angle_value, 'text', f'{v:.1f}°'))        self.add_widget(Label(text='JPEG 画质', size_hint_y=None, height=30))        self.q_slider = Slider(min=90, max=100, value=95, step=1)        self.q_value = Label(text='95', size_hint_y=None, height=20)        self.add_widget(self.q_slider); self.add_widget(self.q_value)        self.q_slider.bind(value=lambda i,v: setattr(self.q_value, 'text', str(int(v))))        self.progress = ProgressBar(max=100, size_hint_y=None, height=20)        self.add_widget(self.progress)        self.status = Label(text='就绪', size_hint_y=None, height=30)        self.add_widget(self.status)        btn_box = BoxLayout(size_hint_y=None, height=50, spacing=10)        self.select_btn = Button(text='选择图片并处理')        self.select_btn.bind(on_press=self.open_filechooser)        btn_box.add_widget(self.select_btn)        self.add_widget(btn_box)    def open_filechooser(self, instance):        content = BoxLayout(orientation='vertical')        fc = FileChooserListView(filters=['*.jpg','*.jpeg','*.png','*.webp'], multiselect=True)        content.add_widget(fc)        btn_box = BoxLayout(size_hint_y=None, height=50)        btn_box.add_widget(Button(text='开始处理', on_press=lambda x: self.process_selected(fc.selection)))        btn_box.add_widget(Button(text='取消', on_press=lambda x: self.popup.dismiss()))        content.add_widget(btn_box)        self.popup = Popup(title='选择图片', content=content, size_hint=(0.9,0.9))        self.popup.open()    def process_selected(self, files):        if not files: return        self.popup.dismiss()        out_dir = '/storage/emulated/0/DCIM/Processed'        os.makedirs(out_dir, exist_ok=True)        quality = int(self.q_slider.value)        flip_h = self.flip_h_btn.state=='down'        flip_v = self.flip_v_btn.state=='down'        color = self.color_btn.state=='down'        border = self.border_btn.state=='down'        png = self.png_btn.state=='down'        max_angle = self.angle_slider.value        self.select_btn.disabled = True        self.status.text = '处理中...'        self.progress.max = len(files)        self.progress.value = 0        def worker():            for i,f in enumerate(files):                out_path = os.path.join(out_dir, os.path.basename(f))                process_image(f, out_path, quality, flip_h, flip_v, color, border, png, max_angle)                Clock.schedule_once(lambda dt, i=i: (self.progress.setter('value')(self.progress, i+1), setattr(self.status, 'text', f'{i+1}/{len(files)}')))            Clock.schedule_once(lambda dt: self.finish())        threading.Thread(target=worker, daemon=True).start()    def finish(self):        self.select_btn.disabled = False        self.status.text = '完成！保存在 DCIM/Processed'        self.progress.value = 0class AntiDedupApp(App):    def build(self):        return MainLayout()if __name__ == '__main__':    AntiDedupApp().run()
+import os, random, threading
+from io import BytesIO
+from PIL import Image, ImageEnhance, ImageOps
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.slider import Slider
+from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.popup import Popup
+from kivy.uix.progressbar import ProgressBar
+from kivy.clock import Clock
+
+class MainLayout(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(orientation='vertical', spacing=10, padding=10)
+        self.add_widget(Label(text='输出: DCIM/Processed', size_hint_y=None, height=30))
+        flip_box = BoxLayout(size_hint_y=None, height=40)
+        self.flip_h_btn = ToggleButton(text='水平翻转')
+        self.flip_v_btn = ToggleButton(text='垂直翻转')
+        flip_box.add_widget(self.flip_h_btn); flip_box.add_widget(self.flip_v_btn)
+        self.add_widget(flip_box)
+        self.color_btn = ToggleButton(text='色彩微调', size_hint_y=None, height=40)
+        self.border_btn = ToggleButton(text='细边框', size_hint_y=None, height=40)
+        self.png_btn = ToggleButton(text='PNG转码', size_hint_y=None, height=40)
+        self.add_widget(self.color_btn); self.add_widget(self.border_btn); self.add_widget(self.png_btn)
+        self.add_widget(Label(text='旋转角度 (°)', size_hint_y=None, height=30))
+        self.angle_slider = Slider(min=0, max=2, value=0.6, step=0.1)
+        self.angle_label = Label(text='0.6°', size_hint_y=None, height=20)
+        self.add_widget(self.angle_slider); self.add_widget(self.angle_label)
+        self.angle_slider.bind(value=lambda i,v: setattr(self.angle_label, 'text', f'{v:.1f}°'))
+        self.add_widget(Label(text='JPEG画质', size_hint_y=None, height=30))
+        self.qual_slider = Slider(min=90, max=100, value=95, step=1)
+        self.qual_label = Label(text='95', size_hint_y=None, height=20)
+        self.add_widget(self.qual_slider); self.add_widget(self.qual_label)
+        self.qual_slider.bind(value=lambda i,v: setattr(self.qual_label, 'text', str(int(v))))
+        self.progress = ProgressBar(max=100, size_hint_y=None, height=20)
+        self.add_widget(self.progress)
+        self.status = Label(text='就绪', size_hint_y=None, height=30)
+        self.add_widget(self.status)
+        self.btn = Button(text='选择图片并处理', size_hint_y=None, height=50)
+        self.btn.bind(on_press=self.open_chooser)
+        self.add_widget(self.btn)
+
+    def open_chooser(self, *args):
+        content = BoxLayout(orientation='vertical')
+        fc = FileChooserListView(filters=['*.jpg','*.jpeg','*.png','*.webp'], multiselect=True)
+        content.add_widget(fc)
+        btn_box = BoxLayout(size_hint_y=None, height=50)
+        btn_box.add_widget(Button(text='开始处理', on_press=lambda x: self.process(fc.selection)))
+        btn_box.add_widget(Button(text='取消', on_press=lambda x: self.popup.dismiss()))
+        content.add_widget(btn_box)
+        self.popup = Popup(title='选择图片', content=content, size_hint=(0.9,0.9))
+        self.popup.open()
+
+    def process(self, files):
+        if not files: return
+        self.popup.dismiss()
+        out_dir = '/storage/emulated/0/DCIM/Processed'
+        os.makedirs(out_dir, exist_ok=True)
+        cfg = {
+            'flip_h': self.flip_h_btn.state == 'down',
+            'flip_v': self.flip_v_btn.state == 'down',
+            'color': self.color_btn.state == 'down',
+            'border': self.border_btn.state == 'down',
+            'png': self.png_btn.state == 'down',
+            'angle': self.angle_slider.value,
+            'quality': int(self.qual_slider.value),
+        }
+        self.btn.disabled = True
+        self.status.text = '处理中...'
+        self.progress.max = len(files)
+        self.progress.value = 0
+
+        def worker():
+            for i, f in enumerate(files):
+                img = Image.open(f).convert('RGB')
+                if cfg['flip_h']: img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                if cfg['flip_v']: img = img.transpose(Image.FLIP_TOP_BOTTOM)
+                if cfg['color']:
+                    img = ImageEnhance.Brightness(img).enhance(random.uniform(0.95,1.05))
+                    img = ImageEnhance.Contrast(img).enhance(random.uniform(0.95,1.05))
+                    img = ImageEnhance.Color(img).enhance(random.uniform(0.95,1.05))
+                angle = random.uniform(-cfg['angle'], cfg['angle'])
+                img = img.rotate(angle, resample=Image.BICUBIC, expand=False, fillcolor=(255,255,255))
+                crop = random.randint(1,3)
+                w,h = img.size
+                img = img.crop((crop, crop, w-crop, h-crop))
+                scale = random.uniform(0.995,1.005)
+                img = img.resize((int(img.width*scale), int(img.height*scale)), resample=Image.LANCZOS)
+                px = img.load()
+                ns = random.randint(1,2)
+                for x in range(img.width):
+                    for y in range(img.height):
+                        r,g,b = px[x,y]
+                        n = random.randint(-ns, ns)
+                        px[x,y] = (min(255,max(0,r+n)), min(255,max(0,g+n)), min(255,max(0,b+n)))
+                if cfg['border']:
+                    img = ImageOps.expand(img, border=1, fill=random.choice([(255,255,255),(0,0,0)]))
+                if cfg['png']:
+                    tmp = BytesIO()
+                    img.save(tmp, format='PNG')
+                    tmp.seek(0)
+                    img = Image.open(tmp).convert('RGB')
+                out_path = os.path.join(out_dir, os.path.basename(f))
+                tmp = BytesIO()
+                img.save(tmp, format='JPEG', quality=cfg['quality'], optimize=True)
+                tmp.seek(0)
+                final = Image.open(tmp)
+                final.save(out_path, format='JPEG', quality=cfg['quality'], optimize=True, exif=b'')
+                Clock.schedule_once(lambda dt, i=i: (self.progress.setter('value')(self.progress, i+1), setattr(self.status, 'text', f'{i+1}/{len(files)}')))
+            Clock.schedule_once(lambda dt: self.finish())
+        threading.Thread(target=worker, daemon=True).start()
+
+    def finish(self):
+        self.btn.disabled = False
+        self.status.text = '完成！保存在 DCIM/Processed'
+        self.progress.value = 0
+
+class AntiDedupApp(App):
+    def build(self):
+        return MainLayout()
+
+if __name__ == '__main__':
+    AntiDedupApp().run()
