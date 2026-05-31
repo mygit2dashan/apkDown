@@ -13,7 +13,10 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk
+          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk \
+            autoconf automake libtool pkg-config cmake \
+            libffi-dev libssl-dev zlib1g-dev \
+            libjpeg-dev libpng-dev libncurses5-dev libncursesw5-dev
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -21,20 +24,20 @@ jobs:
           python-version: '3.10'
 
       - name: Install Buildozer
-        run: |
-          pip install buildozer
+        run: pip install buildozer
 
-      # 删除系统预装的 Android SDK，避免 Buildozer 版本冲突
       - name: Remove pre-installed Android SDK
         run: |
           sudo rm -rf /usr/local/lib/android/sdk
           sudo rm -rf $HOME/.android
 
+      - name: Clean old buildozer cache (optional)
+        run: rm -rf .buildozer
+
       - name: Build APK
         env:
           BUILDOZER_WITH_SUDO: 0
-        run: |
-          buildozer -v android debug
+        run: buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
