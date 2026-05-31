@@ -30,11 +30,13 @@ fullscreen = 0
 # Android 配置
 android.api = 33
 android.minapi = 21
-android.sdk = 33
+# android.sdk 已废弃，删除或注释
+# android.sdk = 33
 android.build_tools = 34.0.0
 
-# 指定稳定的 NDK 版本（关键修复，避免 r28c 兼容性问题）
-android.ndk = 23.1.7779620
+# 不要指定 android.ndk，让 Buildozer 使用推荐的 NDK（当前为 r28c）
+# 我们已经安装了 libtool-bin，应该能解决之前的编译错误
+# android.ndk = 23.1.7779620  # 已失效，注释掉
 
 # 接受 SDK 许可证（必须为 True）
 android.accept_sdk_license = True
