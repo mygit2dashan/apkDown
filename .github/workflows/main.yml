@@ -16,10 +16,8 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd):/app \
-            -e BUILDOZER_WITH_SUDO=1 \
-            -e TERM=dumb \
             my-buildozer \
-            buildozer -v android debug --force
+            buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
