@@ -9,12 +9,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK with Docker
+      - name: Build APK with Docker (stable image)
         run: |
           docker run --rm \
             -v $(pwd):/home/user/hostcwd \
             -w /home/user/hostcwd \
-            kivy/buildozer:latest \
+            kivy/buildozer:1.4.0 \
             -v android debug
 
       - name: Upload APK
