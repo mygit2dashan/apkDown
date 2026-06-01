@@ -17,8 +17,8 @@ android.minapi = 21
 android.sdk = 30
 android.build_tools = 30.0.3
 
-# 使用稳定 NDK r23c，避免 r28c 的编译错误
-android.ndk = 23.1.7779620
+# 不指定 NDK，让 buildozer 自动下载可用的版本
+# android.ndk = 
 
 android.accept_sdk_license = True
 
