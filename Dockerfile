@@ -30,7 +30,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install --upgrade pip && pip3 install buildozer cython
 
-
 RUN sed -i '/def check_root/,/^[[:space:]]*$/c\    def check_root(self):\n        pass' \
     /usr/local/lib/python3.8/dist-packages/buildozer/__init__.py
 
