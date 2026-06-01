@@ -17,7 +17,7 @@ android.minapi = 21
 android.build_tools = 30.0.3
 android.accept_sdk_license = True
 
-# 使用新版语法
+android.python_version = 3.10.20
 android.archs = arm64-v8a
 
 android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
