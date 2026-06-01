@@ -17,12 +17,13 @@ android.minapi = 21
 android.sdk = 30
 android.build_tools = 30.0.3
 
+# 使用稳定 NDK r23c，避免 r28c 的编译错误
+android.ndk = 23.1.7779620
+
 android.accept_sdk_license = True
 
-# 华为设备建议使用较老的 API 30 以提高兼容性
 android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
 
-# 禁用部分高级特性，避免鸿蒙兼容问题
 android.gradle = True
 android.use_jdk21 = True
 android.allow_backup = True
