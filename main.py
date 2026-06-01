@@ -1,5 +1,7 @@
 """
-Image Anti-Deduplication - Stable for HarmonyOS
+Image Anti-Deduplication - Minimal Stable Version
+Select images from gallery, process, save back to gallery.
+No Chinese fonts, only basic buttons.
 """
 
 import os
@@ -16,13 +18,13 @@ from kivy.utils import platform
 from PIL import Image, ImageEnhance, ImageOps
 from io import BytesIO
 
-# Android imports
+# Android specific imports
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android import activity
     from jnius import autoclass
 
-    # Request all needed permissions at start
+    # Request permissions
     perms = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
     try:
         from android.permissions import Permission as P
@@ -60,35 +62,35 @@ class AntiDedupApp(App):
 
     def build(self):
         self.load_settings()
-        layout = BoxLayout(orientation='vertical', padding: 20, spacing: 15)
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
 
         # Title
-        title = Label(text='Image Anti-Deduplication', font_size='24sp', size_hint=(1, 0.15))
-        layout.add_widget(title)
+        self.title_label = Label(text='Image Anti-Dedup', font_size='24sp', size_hint=(1, 0.15))
+        layout.add_widget(self.title_label)
 
         # Status
-        self.status = Label(text='No images selected', font_size='18sp', size_hint=(1, 0.1))
-        layout.add_widget(self.status)
+        self.status_label = Label(text='No images selected', font_size='18sp', size_hint=(1, 0.1))
+        layout.add_widget(self.status_label)
 
         # Select button
-        btn_select = Button(text='Select Images (Multi)', font_size='20sp', size_hint=(1, 0.15))
-        btn_select.bind(on_press=self.select_images)
-        layout.add_widget(btn_select)
+        self.select_btn = Button(text='Select Images (Multi)', font_size='20sp', size_hint=(1, 0.15))
+        self.select_btn.bind(on_press=self.select_images)
+        layout.add_widget(self.select_btn)
 
         # Process button
-        btn_process = Button(text='Start Processing', font_size='20sp', size_hint=(1, 0.15))
-        btn_process.bind(on_press=self.start_processing)
-        layout.add_widget(btn_process)
+        self.process_btn = Button(text='Start Processing', font_size='20sp', size_hint=(1, 0.15))
+        self.process_btn.bind(on_press=self.start_processing)
+        layout.add_widget(self.process_btn)
 
-        # Progress
+        # Progress bar
         self.progress = ProgressBar(max=100, size_hint=(1, 0.05), value=0)
         layout.add_widget(self.progress)
 
-        # Info
+        # Info label (read-only)
         info_text = (f"Settings: flip_h={self.cfg['flip_h']}, color_jitter={self.cfg['color_jitter']}, "
-                     f"angle={self.cfg['max_angle']}°, quality={self.cfg['quality']}%")
-        info = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1))
-        layout.add_widget(info)
+                     f"angle={self.cfg['max_angle']}deg, quality={self.cfg['quality']}%")
+        self.info_label = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1))
+        layout.add_widget(self.info_label)
 
         return layout
 
@@ -133,18 +135,18 @@ class AntiDedupApp(App):
                     for i in range(clipData.getItemCount()):
                         uri = clipData.getItemAt(i).getUri()
                         self.selected_uris.append(str(uri))
-            self.status.text = f'Selected {len(self.selected_uris)} image(s)'
+            self.status_label.text = f'Selected {len(self.selected_uris)} image(s)'
         activity.unbind(on_activity_result=self.on_activity_result)
 
     def on_files_selected(self, selection):
         self.selected_uris = selection if selection else []
-        self.status.text = f'Selected {len(self.selected_uris)} image(s)'
+        self.status_label.text = f'Selected {len(self.selected_uris)} image(s)'
 
     def start_processing(self, instance):
         if self.processing:
             return
         if not self.selected_uris:
-            self.status.text = 'Please select images first!'
+            self.status_label.text = 'Please select images first!'
             return
         self.processing = True
         self.progress.value = 0
@@ -154,7 +156,7 @@ class AntiDedupApp(App):
         total = len(self.selected_uris)
         success = 0
         for idx, img_src in enumerate(self.selected_uris):
-            self.status.text = f'Processing {idx+1}/{total}'
+            self.status_label.text = f'Processing {idx+1}/{total}'
             try:
                 if platform == 'android':
                     uri = Uri.parse(img_src)
@@ -165,15 +167,14 @@ class AntiDedupApp(App):
                 else:
                     pil_img = Image.open(img_src).convert('RGB')
 
-                processed = self.process_single_image(pil_img)
-                self.save_to_gallery(processed)
+                processed_bytes = self.process_single_image(pil_img)
+                self.save_to_gallery(processed_bytes)
                 success += 1
             except Exception as e:
                 print(f"Error: {e}")
-                traceback.print_exc()
             self.progress.value = (idx+1)/total * 100
         self.processing = False
-        self.status.text = f'Done! Success {success}/{total} saved to gallery'
+        self.status_label.text = f'Done! Success {success}/{total} saved to gallery'
         self.progress.value = 0
 
     def process_single_image(self, img):
@@ -198,6 +199,7 @@ class AntiDedupApp(App):
         new_size = (int(img.width*scale), int(img.height*scale))
         img = img.resize(new_size, Image.LANCZOS)
 
+        # Noise
         pixels = img.load()
         noise = random.randint(1, 2)
         for i in range(img.width):
@@ -223,23 +225,23 @@ class AntiDedupApp(App):
         out.seek(0)
         return out
 
-    def save_to_gallery(self, image_bytes):
+    def save_to_gallery(self, image_bytes_io):
         if platform == 'android':
-            resolver = Activity.getApplicationContext().getContentResolver()
+            contentResolver = Activity.getApplicationContext().getContentResolver()
             values = ContentValues()
             filename = f"processed_{random.randint(10000,99999)}.jpg"
             values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
             values.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if hasattr(MediaStore.MediaColumns, 'RELATIVE_PATH'):
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/AntiDedup")
-            uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             if uri:
-                out = resolver.openOutputStream(uri)
-                out.write(image_bytes.getvalue())
-                out.close()
+                os_stream = contentResolver.openOutputStream(uri)
+                os_stream.write(image_bytes_io.getvalue())
+                os_stream.close()
         else:
             with open(f"processed_{random.randint(10000,99999)}.jpg", "wb") as f:
-                f.write(image_bytes.getvalue())
+                f.write(image_bytes_io.getvalue())
 
 if __name__ == '__main__':
     AntiDedupApp().run()
