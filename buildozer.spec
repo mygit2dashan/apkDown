@@ -1,5 +1,5 @@
 [app]
-title = 图片抗检测
+title = Image AntiDedup
 package.name = image_anti_dedup
 package.domain = org.example
 
