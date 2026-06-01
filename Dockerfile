@@ -26,15 +26,8 @@ RUN apt-get update && apt-get install -y \
     libncurses5-dev \
     libncursesw5-dev \
     openjdk-17-jdk \
-    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --upgrade pip && pip3 install buildozer cython
 
-# 创建非 root 用户（无密码 sudo，但实际构建不需要 sudo）
-RUN useradd -m -s /bin/bash builder && echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
 WORKDIR /app
-RUN chown -R builder:builder /app
-
-USER builder
