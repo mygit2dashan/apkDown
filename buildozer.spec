@@ -7,7 +7,7 @@ source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,txt,json
 
 version = 1.0
-requirements = python3,kivy,pillow,android,pyjnius
+requirements = python3,kivy,pillow,pyjnius,android
 
 orientation = portrait
 fullscreen = 0
@@ -17,14 +17,7 @@ android.minapi = 21
 android.build_tools = 34.0.0
 android.accept_sdk_license = True
 
-# 权限（读写外部存储）
-android.permissions = WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
-
-android.gradle = True
-android.use_jdk21 = True
+android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
 
 log_level = 2
 warn_on_root = 1
-
-# 确保使用正确的 NDK（可选）
-# android.ndk = 23.1.7779620
