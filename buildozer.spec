@@ -17,7 +17,7 @@ android.minapi = 21
 android.sdk = 30
 android.build_tools = 30.0.3
 
-# 不指定 NDK，让 Buildozer 自动选择可用版本
+# 不要指定 NDK，让 buildozer 自动下载可用的版本
 # android.ndk =
 
 android.accept_sdk_license = True
