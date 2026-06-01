@@ -9,11 +9,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build Docker image
+        run: docker build -t my-buildozer .
+
       - name: Build APK
-        uses: ArtemSBulgakov/buildozer-action@v1
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+        run: |
+          docker run --rm \
+            -v $(pwd):/app \
+            my-buildozer \
+            bash -c "yes | buildozer -v android debug --force"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
