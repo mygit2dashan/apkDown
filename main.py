@@ -1,6 +1,7 @@
 """
-Image Anti-Deduplication - Stable English Version
+Image Anti-Deduplication - Minimal Stable Version
 Select images from gallery, process, save back to gallery.
+No Chinese fonts, only basic buttons.
 """
 
 import os
@@ -17,21 +18,12 @@ from kivy.utils import platform
 from PIL import Image, ImageEnhance, ImageOps
 from io import BytesIO
 
-# Log file for debugging
-LOG_FILE = "/sdcard/anti_dedup_log.txt" if platform == 'android' else "anti_dedup_log.txt"
-
-def log_error(msg):
-    try:
-        with open(LOG_FILE, 'a') as f:
-            f.write(msg + "\n")
-    except:
-        pass
-
-# Android permissions and imports
+# Android specific imports
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android import activity
     from jnius import autoclass
+
     # Request permissions
     perms = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
     try:
@@ -50,6 +42,7 @@ if platform == 'android':
 else:
     from plyer import filechooser
 
+# Settings
 SETTINGS_FILE = "settings.json"
 DEFAULT_SETTINGS = {
     "flip_h": False,
@@ -69,43 +62,37 @@ class AntiDedupApp(App):
 
     def build(self):
         self.load_settings()
-        root = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
 
         # Title
-        title = Label(text='Image Anti-Deduplication', font_size='24sp', size_hint=(1, 0.15),
-                      color=(0.2, 0.6, 0.8, 1))
-        root.add_widget(title)
+        self.title_label = Label(text='Image Anti-Dedup', font_size='24sp', size_hint=(1, 0.15))
+        layout.add_widget(self.title_label)
 
-        # Status label
-        self.status_label = Label(text='No images selected', font_size='18sp',
-                                  size_hint=(1, 0.1), color=(0.3, 0.3, 0.3, 1))
-        root.add_widget(self.status_label)
+        # Status
+        self.status_label = Label(text='No images selected', font_size='18sp', size_hint=(1, 0.1))
+        layout.add_widget(self.status_label)
 
         # Select button
-        btn_select = Button(text='Select Images (Multi)', font_size='20sp',
-                            size_hint=(1, 0.15), background_normal='',
-                            background_color=(0.2, 0.6, 0.8, 1), color=(1,1,1,1))
-        btn_select.bind(on_press=self.select_images)
-        root.add_widget(btn_select)
+        self.select_btn = Button(text='Select Images (Multi)', font_size='20sp', size_hint=(1, 0.15))
+        self.select_btn.bind(on_press=self.select_images)
+        layout.add_widget(self.select_btn)
 
         # Process button
-        btn_process = Button(text='Start Processing', font_size='20sp',
-                             size_hint=(1, 0.15), background_normal='',
-                             background_color=(0.1, 0.7, 0.3, 1), color=(1,1,1,1))
-        btn_process.bind(on_press=self.start_processing)
-        root.add_widget(btn_process)
+        self.process_btn = Button(text='Start Processing', font_size='20sp', size_hint=(1, 0.15))
+        self.process_btn.bind(on_press=self.start_processing)
+        layout.add_widget(self.process_btn)
 
         # Progress bar
         self.progress = ProgressBar(max=100, size_hint=(1, 0.05), value=0)
-        root.add_widget(self.progress)
+        layout.add_widget(self.progress)
 
-        # Info label (read-only, no binding)
+        # Info label (read-only)
         info_text = (f"Settings: flip_h={self.cfg['flip_h']}, color_jitter={self.cfg['color_jitter']}, "
                      f"angle={self.cfg['max_angle']}deg, quality={self.cfg['quality']}%")
-        info = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1), color=(0.5,0.5,0.5,1))
-        root.add_widget(info)
+        self.info_label = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1))
+        layout.add_widget(self.info_label)
 
-        return root
+        return layout
 
     def load_settings(self):
         if os.path.exists(SETTINGS_FILE):
@@ -113,8 +100,7 @@ class AntiDedupApp(App):
                 with open(SETTINGS_FILE, 'r') as f:
                     saved = json.load(f)
                 self.cfg = {**DEFAULT_SETTINGS, **saved}
-            except Exception as e:
-                log_error(f"load settings error: {e}")
+            except:
                 self.cfg = DEFAULT_SETTINGS.copy()
         else:
             self.cfg = DEFAULT_SETTINGS.copy()
@@ -124,8 +110,8 @@ class AntiDedupApp(App):
         try:
             with open(SETTINGS_FILE, 'w') as f:
                 json.dump(self.cfg, f, indent=2)
-        except Exception as e:
-            log_error(f"save settings error: {e}")
+        except:
+            pass
 
     def select_images(self, instance):
         if platform == 'android':
@@ -149,12 +135,12 @@ class AntiDedupApp(App):
                     for i in range(clipData.getItemCount()):
                         uri = clipData.getItemAt(i).getUri()
                         self.selected_uris.append(str(uri))
-            self.status_label.text = f'Selected {len(self.selected_uris)} images'
+            self.status_label.text = f'Selected {len(self.selected_uris)} image(s)'
         activity.unbind(on_activity_result=self.on_activity_result)
 
     def on_files_selected(self, selection):
         self.selected_uris = selection if selection else []
-        self.status_label.text = f'Selected {len(self.selected_uris)} images'
+        self.status_label.text = f'Selected {len(self.selected_uris)} image(s)'
 
     def start_processing(self, instance):
         if self.processing:
@@ -185,9 +171,7 @@ class AntiDedupApp(App):
                 self.save_to_gallery(processed_bytes)
                 success += 1
             except Exception as e:
-                err_msg = f"Failed {img_src}: {e}\n{traceback.format_exc()}"
-                log_error(err_msg)
-                print(err_msg)
+                print(f"Error: {e}")
             self.progress.value = (idx+1)/total * 100
         self.processing = False
         self.status_label.text = f'Done! Success {success}/{total} saved to gallery'
@@ -215,6 +199,7 @@ class AntiDedupApp(App):
         new_size = (int(img.width*scale), int(img.height*scale))
         img = img.resize(new_size, Image.LANCZOS)
 
+        # Noise
         pixels = img.load()
         noise = random.randint(1, 2)
         for i in range(img.width):
@@ -251,9 +236,9 @@ class AntiDedupApp(App):
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/AntiDedup")
             uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             if uri:
-                os = contentResolver.openOutputStream(uri)
-                os.write(image_bytes_io.getvalue())
-                os.close()
+                os_stream = contentResolver.openOutputStream(uri)
+                os_stream.write(image_bytes_io.getvalue())
+                os_stream.close()
         else:
             with open(f"processed_{random.randint(10000,99999)}.jpg", "wb") as f:
                 f.write(image_bytes_io.getvalue())
