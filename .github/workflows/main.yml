@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK with Docker (stable image)
+      - name: Build APK with Docker
         run: |
           docker run --rm \
             -v $(pwd):/home/user/hostcwd \
