@@ -14,7 +14,7 @@ fullscreen = 0
 
 android.api = 30
 android.minapi = 21
-android.ndk = 23.1.7779620
+# 不要指定 android.ndk，让 buildozer 自动下载可用版本（当前推荐 r28c）
 android.accept_sdk_license = True
 
 android.python_version = 3.10.20
@@ -22,7 +22,7 @@ android.archs = arm64-v8a
 
 android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
 
-# 添加补丁文件：将修复后的 HIDDeviceManager.java 放入仓库的 src/ 目录
+# 添加补丁文件夹（用于替换有问题的 Java 文件）
 android.add_src = src
 
 android.gradle = True
