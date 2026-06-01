@@ -12,12 +12,21 @@ requirements = python3,kivy,pillow,pyjnius,android
 orientation = portrait
 fullscreen = 0
 
-android.api = 33
+android.api = 30
 android.minapi = 21
-android.build_tools = 34.0.0
+android.sdk = 30
+android.build_tools = 30.0.3
+
 android.accept_sdk_license = True
 
+# 华为设备建议使用较老的 API 30 以提高兼容性
 android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
+
+# 禁用部分高级特性，避免鸿蒙兼容问题
+android.gradle = True
+android.use_jdk21 = True
+android.allow_backup = True
+android.arch = arm64-v8a
 
 log_level = 2
 warn_on_root = 1
