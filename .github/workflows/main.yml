@@ -16,6 +16,7 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd):/app \
+            -e P4A_PYTHON_VERSION=3.10.20 \
             my-buildozer \
             bash -c "yes | buildozer -v android debug --force"
 
