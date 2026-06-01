@@ -1,10 +1,13 @@
+"""
+图片抗检测处理 - 中文版
+功能：从相册选择图片（多选），一键处理，保存回系统相册
+特点：界面中文，权限处理健壮，错误日志输出到 /sdcard/antidedup.log
+"""
 
-"""
-Image Anti-Deduplication - Stable English Version
-"""
 import os
 import json
 import random
+import traceback
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -12,21 +15,52 @@ from kivy.uix.button import Button
 from kivy.uix.progressbar import ProgressBar
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.core.text import LabelBase
 from PIL import Image, ImageEnhance, ImageOps
 from io import BytesIO
 
+# 日志文件路径
+if platform == 'android':
+    LOG_FILE = "/sdcard/antidedup.log"
+else:
+    LOG_FILE = "antidedup.log"
+
+def log_error(msg):
+    try:
+        with open(LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f"{msg}\n")
+    except:
+        pass
+
+# 注册中文字体（Android 自带）
+if platform == 'android':
+    try:
+        LabelBase.register(name='Chinese', fn_regular='/system/fonts/DroidSansFallback.ttf')
+        default_font = 'Chinese'
+    except:
+        default_font = 'Roboto'
+else:
+    default_font = 'Roboto'
+
+# Android 权限和导入
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android import activity
-    from jnius import autoclass
+    from jnius import autoclass, JavaException
+
+    # 请求所有必要权限
     perms = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
+    # Android 13+ 需要单独的媒体权限
     try:
         from android.permissions import Permission as P
         if hasattr(P, 'READ_MEDIA_IMAGES'):
             perms.append(P.READ_MEDIA_IMAGES)
     except:
         pass
-    request_permissions(perms)
+    log_error("请求权限: " + str(perms))
+    request_permissions(perms)  # 会阻塞直到用户授权
+    log_error("权限已授予")
+
     Intent = autoclass('android.content.Intent')
     MediaStore = autoclass('android.provider.MediaStore')
     Activity = autoclass('org.kivy.android.PythonActivity')
@@ -54,32 +88,56 @@ class AntiDedupApp(App):
 
     def build(self):
         self.load_settings()
+        # 主布局
         layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
-        title = Label(text='Image Anti-Deduplication', font_size='24sp', size_hint=(1, 0.15))
+
+        # 标题
+        title = Label(text='图片抗检测处理', font_size='28sp', size_hint=(1, 0.15),
+                      color=(0.2, 0.6, 0.8, 1), font_name=default_font)
         layout.add_widget(title)
-        self.status = Label(text='No images selected', font_size='18sp', size_hint=(1, 0.1))
-        layout.add_widget(self.status)
-        btn_select = Button(text='Select Images (Multi)', font_size='20sp', size_hint=(1, 0.15))
-        btn_select.bind(on_press=self.select_images)
-        layout.add_widget(btn_select)
-        btn_process = Button(text='Start Processing', font_size='20sp', size_hint=(1, 0.15))
-        btn_process.bind(on_press=self.start_processing)
-        layout.add_widget(btn_process)
+
+        # 状态标签
+        self.status_label = Label(text='未选择图片', font_size='18sp',
+                                  size_hint=(1, 0.1), color=(0.3, 0.3, 0.3, 1),
+                                  font_name=default_font)
+        layout.add_widget(self.status_label)
+
+        # 选择按钮（设置背景和圆角）
+        self.select_btn = Button(text='📷 从相册选择 (可多选)', font_size='20sp',
+                                 size_hint=(1, 0.15), background_normal='',
+                                 background_color=(0.2, 0.6, 0.8, 1), color=(1,1,1,1))
+        self.select_btn.bind(on_press=self.select_images)
+        layout.add_widget(self.select_btn)
+
+        # 处理按钮
+        self.process_btn = Button(text='🚀 开始处理图片', font_size='20sp',
+                                  size_hint=(1, 0.15), background_normal='',
+                                  background_color=(0.1, 0.7, 0.3, 1), color=(1,1,1,1))
+        self.process_btn.bind(on_press=self.start_processing)
+        layout.add_widget(self.process_btn)
+
+        # 进度条
         self.progress = ProgressBar(max=100, size_hint=(1, 0.05), value=0)
         layout.add_widget(self.progress)
-        info_text = (f"Settings: flip_h={self.cfg['flip_h']}, color_jitter={self.cfg['color_jitter']}, "
-                     f"angle={self.cfg['max_angle']}°, quality={self.cfg['quality']}%")
-        info = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1))
-        layout.add_widget(info)
+
+        # 设置信息（只读）
+        info_text = (f"设置: 水平翻转={self.cfg['flip_h']}, 色彩抖动={self.cfg['color_jitter']}, "
+                     f"最大旋转={self.cfg['max_angle']}°, 画质={self.cfg['quality']}%")
+        self.info_label = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1),
+                                color=(0.5,0.5,0.5,1), font_name=default_font)
+        layout.add_widget(self.info_label)
+
+        log_error("界面构建完成")
         return layout
 
     def load_settings(self):
         if os.path.exists(SETTINGS_FILE):
             try:
-                with open(SETTINGS_FILE, 'r') as f:
+                with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
                     saved = json.load(f)
                 self.cfg = {**DEFAULT_SETTINGS, **saved}
-            except:
+            except Exception as e:
+                log_error(f"加载设置失败: {e}")
                 self.cfg = DEFAULT_SETTINGS.copy()
         else:
             self.cfg = DEFAULT_SETTINGS.copy()
@@ -87,45 +145,66 @@ class AntiDedupApp(App):
 
     def save_settings(self):
         try:
-            with open(SETTINGS_FILE, 'w') as f:
-                json.dump(self.cfg, f, indent=2)
-        except:
-            pass
+            with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(self.cfg, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            log_error(f"保存设置失败: {e}")
 
     def select_images(self, instance):
+        log_error("点击选择图片按钮")
         if platform == 'android':
-            intent = Intent()
-            intent.setAction(Intent.ACTION_GET_CONTENT)
-            intent.setType("image/*")
-            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, True)
-            activity.bind(on_activity_result=self.on_activity_result)
-            activity.startActivityForResult(intent, 0x1234)
+            try:
+                intent = Intent()
+                intent.setAction(Intent.ACTION_GET_CONTENT)
+                intent.setType("image/*")
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, True)
+                # 绑定回调
+                activity.bind(on_activity_result=self.on_activity_result)
+                activity.startActivityForResult(intent, 0x1234)
+                log_error("已启动相册选择")
+            except Exception as e:
+                log_error(f"启动相册失败: {e}\n{traceback.format_exc()}")
+                self.status_label.text = f"打开相册失败: {str(e)}"
         else:
             filechooser.open_files(on_selection=self.on_files_selected, multiple=True)
 
     def on_activity_result(self, requestCode, resultCode, intent):
-        if requestCode == 0x1234 and resultCode == -1:
+        log_error(f"收到返回结果: requestCode={requestCode}, resultCode={resultCode}")
+        if requestCode == 0x1234 and resultCode == -1:  # RESULT_OK
             self.selected_uris.clear()
-            if intent.getData() is not None:
-                self.selected_uris.append(str(intent.getData()))
-            else:
-                clipData = intent.getClipData()
-                if clipData is not None:
-                    for i in range(clipData.getItemCount()):
-                        uri = clipData.getItemAt(i).getUri()
-                        self.selected_uris.append(str(uri))
-            self.status.text = f'Selected {len(self.selected_uris)} image(s)'
+            try:
+                if intent.getData() is not None:
+                    # 单张图片
+                    uri = intent.getData()
+                    self.selected_uris.append(str(uri))
+                else:
+                    # 多张图片
+                    clipData = intent.getClipData()
+                    if clipData is not None:
+                        for i in range(clipData.getItemCount()):
+                            uri = clipData.getItemAt(i).getUri()
+                            self.selected_uris.append(str(uri))
+                count = len(self.selected_uris)
+                self.status_label.text = f'已选择 {count} 张图片'
+                log_error(f"选择了 {count} 张图片")
+            except Exception as e:
+                log_error(f"处理返回结果失败: {e}\n{traceback.format_exc()}")
+                self.status_label.text = "读取相册结果失败，请重试"
+        else:
+            log_error(f"相册选择取消或失败: resultCode={resultCode}")
+            self.status_label.text = "未选择图片"
         activity.unbind(on_activity_result=self.on_activity_result)
 
     def on_files_selected(self, selection):
         self.selected_uris = selection if selection else []
-        self.status.text = f'Selected {len(self.selected_uris)} image(s)'
+        self.status_label.text = f'已选择 {len(self.selected_uris)} 张图片'
 
     def start_processing(self, instance):
+        log_error("点击开始处理按钮")
         if self.processing:
             return
         if not self.selected_uris:
-            self.status.text = 'Please select images first!'
+            self.status_label.text = '请先选择图片！'
             return
         self.processing = True
         self.progress.value = 0
@@ -135,7 +214,7 @@ class AntiDedupApp(App):
         total = len(self.selected_uris)
         success = 0
         for idx, img_src in enumerate(self.selected_uris):
-            self.status.text = f'Processing {idx+1}/{total}'
+            self.status_label.text = f'处理中 {idx+1}/{total}'
             try:
                 if platform == 'android':
                     uri = Uri.parse(img_src)
@@ -148,11 +227,12 @@ class AntiDedupApp(App):
                 processed = self.process_single_image(pil_img)
                 self.save_to_gallery(processed)
                 success += 1
+                log_error(f"处理成功: {img_src}")
             except Exception as e:
-                print(f"Error: {e}")
+                log_error(f"处理失败 {img_src}: {e}\n{traceback.format_exc()}")
             self.progress.value = (idx+1)/total * 100
         self.processing = False
-        self.status.text = f'Done! Success {success}/{total} saved to gallery'
+        self.status_label.text = f'完成！成功 {success}/{total} 张，已保存到相册'
         self.progress.value = 0
 
     def process_single_image(self, img):
@@ -209,6 +289,7 @@ class AntiDedupApp(App):
                 out = resolver.openOutputStream(uri)
                 out.write(image_bytes.getvalue())
                 out.close()
+                log_error(f"保存到相册: {filename}")
         else:
             with open(f"processed_{random.randint(10000,99999)}.jpg", "wb") as f:
                 f.write(image_bytes.getvalue())
