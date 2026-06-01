@@ -30,4 +30,4 @@ android.allow_backup = True
 android.arch = arm64-v8a
 
 log_level = 2
-warn_on_root = 1
+warn_on_root = 0
