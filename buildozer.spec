@@ -12,22 +12,12 @@ requirements = python3,kivy,pillow,pyjnius,android
 orientation = portrait
 fullscreen = 0
 
-android.api = 30
+android.api = 33
 android.minapi = 21
-android.sdk = 30
-android.build_tools = 30.0.3
-
-# 使用稳定 NDK r23c，避免 r28c 的编译错误
-android.ndk = 23.1.7779620
-
+android.build_tools = 34.0.0
 android.accept_sdk_license = True
 
 android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES
-
-android.gradle = True
-android.use_jdk21 = True
-android.allow_backup = True
-android.arch = arm64-v8a
 
 log_level = 2
 warn_on_root = 1
