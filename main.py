@@ -1,7 +1,6 @@
 """
 图片抗检测处理 - 中文版
-功能：从相册选择图片（多选），一键处理，保存回系统相册
-特点：界面中文，权限处理健壮，错误日志输出到 /sdcard/antidedup.log
+日志输出到 /storage/emulated/0/MT2/antidedup.log
 """
 
 import os
@@ -19,9 +18,15 @@ from kivy.core.text import LabelBase
 from PIL import Image, ImageEnhance, ImageOps
 from io import BytesIO
 
-# 日志文件路径
+# 日志路径：/storage/emulated/0/MT2/antidedup.log
 if platform == 'android':
-    LOG_FILE = "/sdcard/antidedup.log"
+    LOG_DIR = "/storage/emulated/0/MT2"
+    LOG_FILE = os.path.join(LOG_DIR, "antidedup.log")
+    # 创建日志目录
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+    except:
+        pass
 else:
     LOG_FILE = "antidedup.log"
 
@@ -32,7 +37,7 @@ def log_error(msg):
     except:
         pass
 
-# 注册中文字体（Android 自带）
+# 注册中文字体
 if platform == 'android':
     try:
         LabelBase.register(name='Chinese', fn_regular='/system/fonts/DroidSansFallback.ttf')
@@ -46,11 +51,9 @@ else:
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android import activity
-    from jnius import autoclass, JavaException
+    from jnius import autoclass
 
-    # 请求所有必要权限
     perms = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
-    # Android 13+ 需要单独的媒体权限
     try:
         from android.permissions import Permission as P
         if hasattr(P, 'READ_MEDIA_IMAGES'):
@@ -58,7 +61,7 @@ if platform == 'android':
     except:
         pass
     log_error("请求权限: " + str(perms))
-    request_permissions(perms)  # 会阻塞直到用户授权
+    request_permissions(perms)
     log_error("权限已授予")
 
     Intent = autoclass('android.content.Intent')
@@ -88,39 +91,32 @@ class AntiDedupApp(App):
 
     def build(self):
         self.load_settings()
-        # 主布局
         layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
 
-        # 标题
         title = Label(text='图片抗检测处理', font_size='28sp', size_hint=(1, 0.15),
                       color=(0.2, 0.6, 0.8, 1), font_name=default_font)
         layout.add_widget(title)
 
-        # 状态标签
         self.status_label = Label(text='未选择图片', font_size='18sp',
                                   size_hint=(1, 0.1), color=(0.3, 0.3, 0.3, 1),
                                   font_name=default_font)
         layout.add_widget(self.status_label)
 
-        # 选择按钮（设置背景和圆角）
         self.select_btn = Button(text='📷 从相册选择 (可多选)', font_size='20sp',
                                  size_hint=(1, 0.15), background_normal='',
                                  background_color=(0.2, 0.6, 0.8, 1), color=(1,1,1,1))
         self.select_btn.bind(on_press=self.select_images)
         layout.add_widget(self.select_btn)
 
-        # 处理按钮
         self.process_btn = Button(text='🚀 开始处理图片', font_size='20sp',
                                   size_hint=(1, 0.15), background_normal='',
                                   background_color=(0.1, 0.7, 0.3, 1), color=(1,1,1,1))
         self.process_btn.bind(on_press=self.start_processing)
         layout.add_widget(self.process_btn)
 
-        # 进度条
         self.progress = ProgressBar(max=100, size_hint=(1, 0.05), value=0)
         layout.add_widget(self.progress)
 
-        # 设置信息（只读）
         info_text = (f"设置: 水平翻转={self.cfg['flip_h']}, 色彩抖动={self.cfg['color_jitter']}, "
                      f"最大旋转={self.cfg['max_angle']}°, 画质={self.cfg['quality']}%")
         self.info_label = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1),
@@ -158,7 +154,6 @@ class AntiDedupApp(App):
                 intent.setAction(Intent.ACTION_GET_CONTENT)
                 intent.setType("image/*")
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, True)
-                # 绑定回调
                 activity.bind(on_activity_result=self.on_activity_result)
                 activity.startActivityForResult(intent, 0x1234)
                 log_error("已启动相册选择")
@@ -170,15 +165,12 @@ class AntiDedupApp(App):
 
     def on_activity_result(self, requestCode, resultCode, intent):
         log_error(f"收到返回结果: requestCode={requestCode}, resultCode={resultCode}")
-        if requestCode == 0x1234 and resultCode == -1:  # RESULT_OK
+        if requestCode == 0x1234 and resultCode == -1:
             self.selected_uris.clear()
             try:
                 if intent.getData() is not None:
-                    # 单张图片
-                    uri = intent.getData()
-                    self.selected_uris.append(str(uri))
+                    self.selected_uris.append(str(intent.getData()))
                 else:
-                    # 多张图片
                     clipData = intent.getClipData()
                     if clipData is not None:
                         for i in range(clipData.getItemCount()):
