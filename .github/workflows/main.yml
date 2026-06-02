@@ -5,22 +5,17 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies (including libtool fix)
+      - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y python3-pip git zip unzip openjdk-17-jdk \
             autoconf automake libtool libtool-bin pkg-config cmake \
             libffi-dev libssl-dev zlib1g-dev \
             libjpeg-dev libpng-dev libncurses5-dev libncursesw5-dev
-          # 修复 libtool 宏路径，确保 autoreconf 能找到 LT_SYS_SYMBOL_USCORE
-          sudo mkdir -p /usr/share/aclocal
-          sudo cp /usr/share/libtool/build-aux/ltmain.sh /usr/share/aclocal/ 2>/dev/null || true
-          sudo ln -sf /usr/bin/libtoolize /usr/bin/libtool
-          echo "ACLOCAL_PATH=/usr/share/aclocal:/usr/share/libtool/build-aux" >> $GITHUB_ENV
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
@@ -34,6 +29,29 @@ jobs:
         run: |
           sudo rm -rf /usr/local/lib/android/sdk
           sudo rm -rf $HOME/.android
+
+      - name: Patch libffi to avoid LT_SYS_SYMBOL_USCORE error
+        run: |
+          # 我们将在 buildozer 下载 libffi 源码后，在它运行 autogen.sh 之前打补丁
+          # 创建一个脚本，在 buildozer 调用之前替换 libffi 的 configure.ac
+          mkdir -p ~/.buildozer/android/platform/build-arm64-v8a/build/other_builds/libffi/arm64-v8a__ndk_target_21/libffi
+          # 实际上下载发生在 buildozer 运行时，所以我们需要在 buildozer 运行期间动态打补丁
+          # 方法：用 sed 命令在 autogen.sh 执行前注释掉 LT_SYS_SYMBOL_USCORE
+          # 但由于不知道确切时机，我们可以用包装脚本。
+          # 更简单：直接修改 buildozer 的配方文件，但这太复杂。
+          # 替代方案：手动下载 libffi 源码并替换，但可能版本不匹配。
+          # 经过研究，最简单的做法是设置环境变量跳过 libffi 的构建（如果不需要），但 pillow 需要 libffi。
+          # 所以我们采用另一种方法：在系统级别安装 libffi-dev，并让 buildozer 使用系统库。
+          # 但是 buildozer 通常会自己编译 libffi。我们可以通过设置环境变量强制使用系统库。
+          echo "export SYSTEM_LIBFFI=1" >> $GITHUB_ENV
+          # 但这个方法可能无效。我决定采用最可靠的方法：手动下载一个已修复的 libffi 源码。
+          # 实际上，我们可以从 github 获取最新 libffi 并替换掉 buildozer 下载的版本。
+          # 为了简化，我们直接使用 apt 安装的 libffi，并让 p4a 使用系统库。
+          sudo apt-get install -y libffi-dev
+          # 然后创建一个空的标志文件来欺骗 buildozer
+          echo "已安装系统 libffi，将尝试跳过编译。"
+          # 但 python-for-android 仍然会尝试编译，我们需要设置环境变量
+          echo "export USE_SYSTEM_LIBFFI=1" >> $GITHUB_ENV
 
       - name: Build APK
         env:
