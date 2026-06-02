@@ -18,7 +18,6 @@ from kivy.core.text import LabelBase
 from PIL import Image, ImageEnhance, ImageOps
 from io import BytesIO
 
-# 日志路径：/storage/emulated/0/MT2/antidedup.log
 if platform == 'android':
     LOG_DIR = "/storage/emulated/0/MT2"
     LOG_FILE = os.path.join(LOG_DIR, "antidedup.log")
@@ -36,7 +35,6 @@ def log_error(msg):
     except:
         pass
 
-# 注册中文字体
 if platform == 'android':
     try:
         LabelBase.register(name='Chinese', fn_regular='/system/fonts/DroidSansFallback.ttf')
@@ -46,12 +44,10 @@ if platform == 'android':
 else:
     default_font = 'Roboto'
 
-# Android 权限和导入
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android import activity
     from jnius import autoclass
-
     perms = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
     try:
         from android.permissions import Permission as P
@@ -62,7 +58,6 @@ if platform == 'android':
     log_error("请求权限: " + str(perms))
     request_permissions(perms)
     log_error("权限已授予")
-
     Intent = autoclass('android.content.Intent')
     MediaStore = autoclass('android.provider.MediaStore')
     Activity = autoclass('org.kivy.android.PythonActivity')
@@ -91,37 +86,30 @@ class AntiDedupApp(App):
     def build(self):
         self.load_settings()
         layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
-
         title = Label(text='图片抗检测处理', font_size='28sp', size_hint=(1, 0.15),
                       color=(0.2, 0.6, 0.8, 1), font_name=default_font)
         layout.add_widget(title)
-
         self.status_label = Label(text='未选择图片', font_size='18sp',
                                   size_hint=(1, 0.1), color=(0.3, 0.3, 0.3, 1),
                                   font_name=default_font)
         layout.add_widget(self.status_label)
-
         self.select_btn = Button(text='📷 从相册选择 (可多选)', font_size='20sp',
                                  size_hint=(1, 0.15), background_normal='',
                                  background_color=(0.2, 0.6, 0.8, 1), color=(1,1,1,1))
         self.select_btn.bind(on_press=self.select_images)
         layout.add_widget(self.select_btn)
-
         self.process_btn = Button(text='🚀 开始处理图片', font_size='20sp',
                                   size_hint=(1, 0.15), background_normal='',
                                   background_color=(0.1, 0.7, 0.3, 1), color=(1,1,1,1))
         self.process_btn.bind(on_press=self.start_processing)
         layout.add_widget(self.process_btn)
-
         self.progress = ProgressBar(max=100, size_hint=(1, 0.05), value=0)
         layout.add_widget(self.progress)
-
         info_text = (f"设置: 水平翻转={self.cfg['flip_h']}, 色彩抖动={self.cfg['color_jitter']}, "
                      f"最大旋转={self.cfg['max_angle']}°, 画质={self.cfg['quality']}%")
         self.info_label = Label(text=info_text, font_size='14sp', size_hint=(1, 0.1),
                                 color=(0.5,0.5,0.5,1), font_name=default_font)
         layout.add_widget(self.info_label)
-
         log_error("界面构建完成")
         return layout
 
