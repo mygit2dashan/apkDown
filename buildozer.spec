@@ -7,13 +7,14 @@ source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,txt,json
 
 version = 1.0
-requirements = python3,kivy,pillow,pyjnius
+requirements = python3,kivy,pillow
 
 orientation = portrait
 fullscreen = 0
 
 android.api = 31
 android.minapi = 21
+android.ndk = 25.2.13819990
 android.build_tools = 31.0.0
 android.accept_sdk_license = True
 
