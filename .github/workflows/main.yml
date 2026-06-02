@@ -9,13 +9,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install system dependencies (including libtool fix)
         run: |
           sudo apt update
           sudo apt install -y python3-pip git zip unzip openjdk-17-jdk \
-            autoconf automake libtool pkg-config cmake \
+            autoconf automake libtool libtool-bin pkg-config cmake \
             libffi-dev libssl-dev zlib1g-dev \
             libjpeg-dev libpng-dev libncurses5-dev libncursesw5-dev
+          # 修复 libtool 宏路径，确保 autoreconf 能找到 LT_SYS_SYMBOL_USCORE
+          sudo mkdir -p /usr/share/aclocal
+          sudo cp /usr/share/libtool/build-aux/ltmain.sh /usr/share/aclocal/ 2>/dev/null || true
+          sudo ln -sf /usr/bin/libtoolize /usr/bin/libtool
+          echo "ACLOCAL_PATH=/usr/share/aclocal:/usr/share/libtool/build-aux" >> $GITHUB_ENV
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
