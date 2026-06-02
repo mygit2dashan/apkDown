@@ -1,26 +1,24 @@
-name: Build APK
+[app]
+title = TestApp
+package.name = testapp
+package.domain = org.test
 
-on:
-  workflow_dispatch:
+source.dir = .
+source.include_exts = py
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+version = 1.0
+requirements = python3,kivy
 
-      - name: Build Docker image
-        run: docker build -t my-buildozer .
+orientation = portrait
+fullscreen = 0
 
-      - name: Build APK
-        run: |
-          docker run --rm \
-            -v $(pwd):/app \
-            my-buildozer \
-            bash -c "yes | buildozer -v android debug --force"
+android.api = 30
+android.minapi = 21
+android.accept_sdk_license = True
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-file
-          path: bin/*.apk
+android.archs = arm64-v8a
+
+android.permissions = READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
+
+log_level = 2
+warn_on_root = 0
